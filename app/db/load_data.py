@@ -1,8 +1,9 @@
+import asyncio
 import pandas as pd
 from db_connection import create_connection
 import os
 
-def load_data_to_db():
+async def load_data_to_db():
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         file_path = os.path.join(current_dir, '../data/productos.csv')
@@ -19,24 +20,25 @@ def load_data_to_db():
         return
 
     try:
-        connection = create_connection()
-        cursor = connection.cursor()
+        connection = await create_connection()
+        cursor = await connection.cursor()
 
         for index, row in df.iterrows():
             insert_query = """
             INSERT INTO productos (nombre, proteinas, grasas, carbohidratos)
             VALUES (%s, %s, %s, %s)
             """
-            cursor.execute(insert_query, (row['Producto'], row['Proteinas'], row['Grasas'], row['Carbohidratos']))
+            await cursor.execute(insert_query, (row['Producto'], row['Proteinas'], row['Grasas'], row['Carbohidratos']))
 
-        connection.commit()
+        await connection.commit()
         print("Datos insertados exitosamente.")
 
     except Exception as e:
         print(f"Error al insertar datos: {e}")
 
     finally:
-        cursor.close()
+        await cursor.close()
         connection.close()
 
-load_data_to_db()
+asyncio.run(load_data_to_db())
+

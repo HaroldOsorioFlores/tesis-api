@@ -27,7 +27,6 @@ services:
         limits:
           cpus: "6"
           memory: "12g"
-    
     environment:
       DB_HOST: db
       DB_USER: user

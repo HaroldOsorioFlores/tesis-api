@@ -1,1 +1,24 @@
-app/data
+
+# Ignora scripts específicos
+start.sh
+test.py
+train.py
+prueba.py
+
+# Ignora todos los archivos en app/data, excepto aquellos que quieras incluir explícitamente
+app/data/*
+
+# Ignora archivos y carpetas comunes que puedan generarse en el entorno
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+
+# Ignora entornos virtuales de Python
+venv/
+.env
+*.env
+
+# Ignora archivos y carpetas de configuración de IDEs (si usas alguno)
+.vscode/
+.idea/

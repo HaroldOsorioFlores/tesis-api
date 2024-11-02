@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import List, Optional
 
 # Modelos
 class Token(BaseModel):
@@ -28,6 +28,14 @@ class Producto(BaseModel):
     proteinas: float
     grasas: float
     carbohidratos: float
-    estado: int
+    estado: Optional[int] = None  # Hacer el campo estado opcional
 
+class RecomendacionResponse(BaseModel):
+    id: int
+    usuario_id: int
+    peso: float
+    talla: float
+    edad: int
+    f_recomendacion: str
+    productos: List[List[Producto]]  # Cambiar a lista de listas de enteros
 

@@ -29,3 +29,4 @@ class RecommendationResponseDTO(BaseModel):
     combinacion_recomendada: List[float]
     productos_recomendados: List[Producto]
     distancia: float
+

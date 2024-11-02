@@ -25,25 +25,23 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str):
     return pwd_context.hash(password)
 
-async def get_user_by_email(email: str, connection = Depends(get_db)):
-    cursor = connection.cursor()
+async def get_user_by_email(email: str, connection) -> Optional[UserInDB]:
+    async with connection.cursor() as cursor:
+        query = """
+            SELECT id, nombres, apellidos, correo, contrasenia FROM usuarios WHERE correo = %s
+        """
+        await cursor.execute(query, (email,))
+        result = await cursor.fetchone()
 
-    query = """
-        SELECT id, nombres, apellidos, correo, contrasenia FROM usuarios WHERE correo = %s
-    """
-
-    cursor.execute(query, (email,))
-    result = cursor.fetchone()
-
-    if result:
-        return UserInDB(
-            id=result[0],
-            nombres=result[1],
-            apellidos=result[2],
-            correo=result[3],
-            contrasenia=result[4],
-        )
-    return None  
+        if result:
+            return UserInDB(
+                id=result[0],
+                nombres=result[1],
+                apellidos=result[2],
+                correo=result[3],
+                contrasenia=result[4],
+            )
+    return None
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()

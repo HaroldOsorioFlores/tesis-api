@@ -1,17 +1,17 @@
+import asyncio
 from db_connection import create_connection
 
-def create_tables():
+async def create_tables():
     try:
-        connection = create_connection()
-        cursor = connection.cursor()
+        connection = await create_connection()
+        cursor = await connection.cursor()
 
+        # Tabla de usuarios
         create_usuarios_table = """
         CREATE TABLE IF NOT EXISTS usuarios (
             id INT AUTO_INCREMENT PRIMARY KEY,
             nombres VARCHAR(100) NOT NULL,
             apellidos VARCHAR(100) NOT NULL,
-            peso DOUBLE,
-            talla DOUBLE,
             sexo VARCHAR(10),
             correo VARCHAR(255) NOT NULL UNIQUE,
             dni VARCHAR(15) UNIQUE,
@@ -22,8 +22,9 @@ def create_tables():
             actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         );
         """
-        cursor.execute(create_usuarios_table)
+        await cursor.execute(create_usuarios_table)
 
+        # Tabla de productos
         create_productos_table = """
         CREATE TABLE IF NOT EXISTS productos (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -36,23 +37,36 @@ def create_tables():
             actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         );
         """
-        cursor.execute(create_productos_table)
+        await cursor.execute(create_productos_table)
 
+        # Tabla de recomendaciones
         create_recomendaciones_table = """
         CREATE TABLE IF NOT EXISTS recomendaciones (
             id INT AUTO_INCREMENT PRIMARY KEY,
             usuario_id INT,
-            producto_id INT,
+            peso DOUBLE,
+            talla DOUBLE,
+            edad INT,
             estado INT DEFAULT 1,
             f_recomendacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-            FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
         );
         """
-        cursor.execute(create_recomendaciones_table)
+        await cursor.execute(create_recomendaciones_table)
 
-        connection.commit()
+        # Tabla intermedia recomendacion_producto
+        create_recomendacion_producto_table = """
+        CREATE TABLE IF NOT EXISTS recomendacion_producto (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            recomendacion_id INT,
+            producto_ids JSON,  -- Almacenar una lista de IDs de productos como JSON
+            FOREIGN KEY (recomendacion_id) REFERENCES recomendaciones(id) ON DELETE CASCADE
+        );
+        """
+        await cursor.execute(create_recomendacion_producto_table)
+
+        await connection.commit()
         print("Tablas creadas exitosamente.")
 
     except Exception as error:  
@@ -60,8 +74,8 @@ def create_tables():
     
     finally:
         if cursor:
-            cursor.close()
+            await cursor.close()
         if connection:
             connection.close()
 
-create_tables()
+asyncio.run(create_tables())
