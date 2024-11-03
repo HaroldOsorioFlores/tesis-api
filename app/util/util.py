@@ -32,3 +32,10 @@ def get_combination_at_index(n, index):
             remaining_index -= math.comb(current_n - 1, k - 1)
         current_n -= 1
     return combination
+
+
+def calcular_imc(peso, altura):
+    if altura > 3:
+        altura = altura / 100 
+    imc = peso / (altura ** 2)
+    return imc

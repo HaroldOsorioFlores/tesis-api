@@ -3,7 +3,7 @@ from fastapi import FastAPI, status
 from app.controllers.controllers import get_productos_db, get_recommendations_db, login_for_access_token, obtener_historial_recomendaciones_y_productos, register_user
 from app.db.db_connection import get_db
 from app.models.dtos import ErrorResponseDTO, ModelResponseDTO, RecommendationRequestDTO
-from app.models.models import RecomendacionResponse, Token, UserCreate,UserInDB
+from app.models.models import  HistorialRecomendacionResponse, Token, UserCreate,UserInDB
 from fastapi import Depends, FastAPI
 from fastapi.security import  OAuth2PasswordRequestForm
 from app.auth import  get_current_active_user
@@ -62,7 +62,7 @@ async def get_recommendations(data: RecommendationRequestDTO, current_user: Anno
     recomendaciones_finales = await get_recommendations_db(data, current_user.data.correo, connection)
     return recomendaciones_finales
 
-@app.get("/history-recomendations", response_model=List[RecomendacionResponse])
+@app.get("/history-recomendations", response_model=List[HistorialRecomendacionResponse])
 async def get_recomendaciones(current_user: Annotated[ModelResponseDTO, Depends(get_current_active_user)], connection=Depends(get_db)):
     recomendaciones = await obtener_historial_recomendaciones_y_productos(current_user.data.correo, connection)
     return recomendaciones

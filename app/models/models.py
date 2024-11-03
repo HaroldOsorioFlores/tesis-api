@@ -30,12 +30,15 @@ class Producto(BaseModel):
     carbohidratos: float
     estado: Optional[int] = None  # Hacer el campo estado opcional
 
-class RecomendacionResponse(BaseModel):
+class HistorialRecomendacionResponse(BaseModel):
     id: int
     usuario_id: int
     peso: float
     talla: float
     edad: int
+    genero: int
+    act_fisica: int
+    imc: float
     f_recomendacion: str
     productos: List[List[Producto]]  # Cambiar a lista de listas de enteros
 

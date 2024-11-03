@@ -1,7 +1,6 @@
 import joblib
 import os
-import pandas as pd
-import numpy as np
+
 # servicio de carga del modelo de machine learning
 class ModelService:
     def __init__(self):
@@ -19,12 +18,6 @@ class ModelService:
 
 
         print(f"Modelo cargado desde: {file_path_model}")
-
-        file_path_productos = os.path.join(current_dir, '../data/productos.csv')
-        self.nombres_productos = pd.read_csv(file_path_productos, sep=';')['Producto'].values
-
-        file_path_combinaciones = os.path.join(current_dir, '../data/combinaciones_productos.csv')
-        self.combinaciones_productos = np.array(pd.read_csv(file_path_combinaciones, sep=';'))
 
         print("Modelo y datos cargados correctamente")
 

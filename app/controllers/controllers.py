@@ -6,8 +6,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.auth import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_password_hash, get_user_by_email, verify_password
 from app.db.db_connection import get_db
 from app.models.dtos import ModelResponseDTO, RecommendationRequestDTO, RecommendationResponseDTO
-from app.models.models import Producto, UserCreate
-from app.util.util import calcular_tmb, calcular_calorias_totales, calcular_macronutrientes, get_combination_at_index
+from app.models.models import HistorialRecomendacionResponse, Producto, UserCreate
+from app.util.util import calcular_imc, calcular_tmb, calcular_calorias_totales, calcular_macronutrientes, get_combination_at_index
 import numpy as np
 from app.services.load_service import model_service
 
@@ -136,34 +136,39 @@ async def get_recommendations_db(data: RecommendationRequestDTO, correo: str, co
         distancias, indices = model_service.knn_loaded.kneighbors([necesidades_usuario])
         print(f"indices: {indices}")
 
+        # Obtener los nombres de los productos desde la base de datos
+        async with connection.cursor() as cursor:
+            await cursor.execute("""
+                SELECT nombre FROM productos
+            """)
+            nombres_productos = [row[0] for row in await cursor.fetchall()]
+
         # Crear una nueva recomendación en la tabla recomendaciones
         async with connection.cursor() as cursor:
             await cursor.execute(
                 """
-                INSERT INTO recomendaciones (usuario_id, peso, talla, edad)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO recomendaciones (usuario_id, peso, talla, edad, genero, act_fisica)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 """,
-                (user.id, data.peso, data.altura, data.edad)
+                (user.id, data.peso, data.altura, data.edad, data.genero, data.nivel_actividad)
             )
             recomendacion_id = cursor.lastrowid
 
             recomendaciones = []
             for i in range(10):
-                indices_recomendados = get_combination_at_index(len(model_service.nombres_productos), indices.flatten()[i] + 1)
+                indices_recomendados = get_combination_at_index(len(nombres_productos), indices.flatten()[i] + 1)
                 productos_recomendados = []
                 producto_ids = []
 
                 for j in indices_recomendados:
-                    nombre_producto = model_service.nombres_productos[j]
+                    nombre_producto = nombres_productos[j]
 
-                    # Obtener el producto completo en lugar de solo el nombre
                     producto = await obtener_producto_por_nombre(nombre_producto, connection)
 
-                    if producto:  # Asegurarse de que el producto existe
-                        productos_recomendados.append(producto)  # Agregar el producto como instancia de Producto
-                        producto_ids.append(producto.id)  # Agregar el id del producto a la lista
+                    if producto:  
+                        productos_recomendados.append(producto)  
+                        producto_ids.append(producto.id)  
 
-                # Agregar recomendaciones solo si hay productos recomendados
                 if productos_recomendados:
                     recomendaciones.append({
                         "combinacion_recomendada": indices_recomendados,
@@ -171,22 +176,20 @@ async def get_recommendations_db(data: RecommendationRequestDTO, correo: str, co
                         "distancia": distancias.flatten()[i]
                     })
 
-                    # Insertar en la tabla intermedia recomendacion_producto
                     await cursor.execute(
                         """
                         INSERT INTO recomendacion_producto (recomendacion_id, producto_ids)
                         VALUES (%s, %s)
                         """,
-                        (recomendacion_id, json.dumps(producto_ids))  # Usar el id del producto
+                        (recomendacion_id, json.dumps(producto_ids))
                     )
             
             await connection.commit()
 
-            # Estructurar la respuesta
             recomendaciones_finales = [
                 RecommendationResponseDTO(
                     combinacion_recomendada=recomendacion["combinacion_recomendada"],
-                    productos_recomendados=recomendacion["productos_recomendados"],  # Esto ahora tiene instancias de Producto
+                    productos_recomendados=recomendacion["productos_recomendados"],  
                     distancia=recomendacion["distancia"]
                 )
                 for recomendacion in recomendaciones
@@ -197,11 +200,9 @@ async def get_recommendations_db(data: RecommendationRequestDTO, correo: str, co
     except Exception as error:
         print(f"Error: {error}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al obtener las recomendaciones")
-
+    
 async def obtener_historial_recomendaciones_y_productos(correo: str, connection):
-    # Verificar si el usuario existe
     try:
-        # Verificar usuario por correo
         user = await get_user_by_email(correo, connection)
         if not user:
             raise HTTPException(
@@ -209,10 +210,9 @@ async def obtener_historial_recomendaciones_y_productos(correo: str, connection)
                 detail="Usuario no autorizado",
                 headers={"WWW-Authenticate": "Bearer"}
             )
-        async with connection.cursor() as cursor:  # No usar aiomysql.DictCursor
+        async with connection.cursor() as cursor:  
             usuario_id = user.id
 
-            # Obtener las recomendaciones y productos asociados
             await cursor.execute("""
                 SELECT 
                     r.id AS recomendacion_id,
@@ -220,6 +220,8 @@ async def obtener_historial_recomendaciones_y_productos(correo: str, connection)
                     r.peso,
                     r.talla,
                     r.edad,
+                    r.genero,
+                    r.act_fisica,
                     r.f_recomendacion,
                     JSON_EXTRACT(rp.producto_ids, '$[*]') AS producto_ids
                 FROM 
@@ -233,18 +235,25 @@ async def obtener_historial_recomendaciones_y_productos(correo: str, connection)
 
             recomendaciones = {}
             for row in results:
-                recomendacion_id = row[0]  # Acceder por índice
+                recomendacion_id = row[0]  
                 if recomendacion_id not in recomendaciones:
+                    peso = row[2]  
+                    talla = row[3]  
+                    imc = calcular_imc(peso, talla)  
+
                     recomendaciones[recomendacion_id] = {
                         'id': recomendacion_id,
-                        'usuario_id': row[1],  # Acceder por índice
-                        'peso': row[2],  # Acceder por índice
-                        'talla': row[3],  # Acceder por índice
-                        'edad': row[4],  # Acceder por índice
-                        'f_recomendacion': row[5].isoformat(),  # Acceder por índice
+                        'usuario_id': row[1],  
+                        'peso': peso,  
+                        'talla': talla,  
+                        'edad': row[4],  
+                        'genero': row[5],  
+                        'act_fisica': row[6],  
+                        'imc': imc,  
+                        'f_recomendacion': row[7].isoformat(),  
                         'productos': []
                     }
-                producto_ids = json.loads(row[6])  # Acceder por índice y convertir a lista
+                producto_ids = json.loads(row[8]) 
                 productos = []
                 for producto_id in producto_ids:
                     await cursor.execute("""
@@ -257,17 +266,17 @@ async def obtener_historial_recomendaciones_y_productos(correo: str, connection)
                     """, (producto_id,))
                     producto_result = await cursor.fetchone()
                     if producto_result:
-                        productos.append({
-                            'id': producto_result[0],  # Acceder por índice
-                            'nombre': producto_result[1],  # Acceder por índice
-                            'proteinas': producto_result[2],  # Acceder por índice
-                            'grasas': producto_result[3],  # Acceder por índice
-                            'carbohidratos': producto_result[4],  # Acceder por índice
-                            'estado': producto_result[5]  # Acceder por índice
-                        })
+                        productos.append(Producto(
+                            id=producto_result[0],  
+                            nombre=producto_result[1],  
+                            proteinas=producto_result[2],  
+                            grasas=producto_result[3],  
+                            carbohidratos=producto_result[4],  
+                            estado=producto_result[5]  
+                        ))
                 recomendaciones[recomendacion_id]['productos'].append(productos)
 
-            return list(recomendaciones.values())
+            return [HistorialRecomendacionResponse(**recomendacion) for recomendacion in recomendaciones.values()]
     except Exception as error:
         print(f"Error: {error}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al obtener el historial de recomendaciones")
