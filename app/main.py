@@ -1,5 +1,6 @@
 from typing import Annotated, List
 from fastapi import FastAPI, status
+from fastapi_pagination import Page, add_pagination, paginate
 from app.controllers.controllers import get_productos_db, get_recommendations_db, login_for_access_token, obtener_historial_recomendaciones_y_productos, register_user
 from app.db.db_connection import get_db
 from app.models.dtos import ErrorResponseDTO, ModelResponseDTO, RecommendationRequestDTO
@@ -11,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .services.load_service import model_service
 
 app = FastAPI()
+add_pagination(app) 
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,7 +29,6 @@ async def startup_event():
     print("iniciando carga del modelo")
     await model_service.load_model_and_data()
     print(f"Modelo cargado al inicio de la app: {model_service.knn_loaded}")
-    # Crear un archivo de señal para indicar que el modelo se ha cargado
 
 
 @app.on_event("shutdown")
@@ -55,17 +56,19 @@ async def get_productos(current_user: Annotated[ModelResponseDTO, Depends(get_cu
 
     return ModelResponseDTO(status_code=200, detail="Productos obtenidos exitosamente", data=productos)
 
-# endpoint de recomendacion
 @app.post("/recommendations", response_model=ModelResponseDTO, responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponseDTO}})
 async def get_recommendations(data: RecommendationRequestDTO, current_user: Annotated[ModelResponseDTO, Depends(get_current_active_user)], connection=Depends(get_db)):
     print(f"recomendaciones main: {data}")
     recomendaciones_finales = await get_recommendations_db(data, current_user.data.correo, connection)
     return recomendaciones_finales
 
-@app.get("/history-recomendations", response_model=List[HistorialRecomendacionResponse])
-async def get_recomendaciones(current_user: Annotated[ModelResponseDTO, Depends(get_current_active_user)], connection=Depends(get_db)):
+@app.get("/history-recomendations", response_model=Page[HistorialRecomendacionResponse])
+async def get_recomendaciones(
+    current_user: Annotated[ModelResponseDTO, Depends(get_current_active_user)],
+    connection=Depends(get_db)
+):
     recomendaciones = await obtener_historial_recomendaciones_y_productos(current_user.data.correo, connection)
-    return recomendaciones
+    return paginate(recomendaciones)
 
 if __name__ == "__main__":
     import uvicorn
