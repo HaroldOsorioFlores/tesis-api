@@ -21,3 +21,32 @@ venv/
 # Ignora archivos y carpetas de configuración de IDEs (si usas alguno)
 .vscode/
 .idea/
+
+# Archivos de estado de Terraform
+*.tfstate
+*.tfstate.*
+
+# Archivos de configuración de backend
+.terraform/
+
+# Archivos de lock
+.terraform.lock.hcl
+
+# Archivos de salida de comandos de Terraform
+*.tfplan
+
+# Archivos de claves privadas
+*.pem
+
+# Ignorar archivos de configuración personal
+terraform.tfvars
+*.tfvars.json
+
+# Ignorar directorios de Terraform
+.terraform.d/
+
+# Ignorar archivos temporales
+*.tmp
+
+# Ignorar cualquier archivo que empiece con un punto
+.*
