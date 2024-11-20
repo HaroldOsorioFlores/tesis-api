@@ -1,47 +1,84 @@
 provider "aws" {
-  region = "us-west-1"  # Cambia a la región que prefieras
+  region = "us-west-1"  
 }
 
-# Crea un par de claves de AWS usando la clave pública generada
-resource "aws_key_pair" "mi_llave" {
-  key_name   = "mi_llave_terraform"  # Nombre para el par de claves en AWS
-  public_key = file("C:/Users/gonza/.ssh/clave_aws.pub")  # Ruta a tu clave pública
+variable "public_key_path" {
+  description = "Ruta a la clave pública SSH"
+  type        = string
 }
 
-# Crea un grupo de seguridad para permitir el acceso por SSH
-resource "aws_security_group" "mi_grupo_seguridad" {
-  name        = "mi_grupo_seguridad"
-  description = "Grupo de seguridad para permitir SSH"
+variable "db_password" {
+  description = "Contraseña de la base de datos"
+  type        = string
+  sensitive   = true
+}
 
-  # Permitir acceso al puerto 22 (SSH) desde cualquier IP
+resource "aws_key_pair" "recfoodcato_key" {
+  key_name   = "recfoodcato_key"  
+  public_key = file(var.public_key_path)  
+}
+
+resource "aws_security_group" "recfoodcato_security_group" {
+  name        = "recfoodcato_security_group"
+  description = "Grupo de seguridad para permitir SSH y acceso a la base de datos"
+
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Permite el acceso desde cualquier dirección IP (puedes restringirlo si lo deseas)
+    cidr_blocks = ["0.0.0.0/0"]  # Limitar a direcciones IP específicas en producción
   }
 
-  # Permitir tráfico de salida
+  ingress {
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # Limitar a direcciones IP específicas en producción
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
-    protocol    = "-1"  # Permite todo el tráfico de salida
+    protocol    = "-1"  
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
-# Crea la instancia EC2
-resource "aws_instance" "mi_instancia" {
+resource "aws_instance" "recfoodcato_instance" {
   ami           = "ami-0da424eb883458071"  
   instance_type = "t2.micro"
 
-  # Asocia la clave con la instancia EC2
-  key_name = aws_key_pair.mi_llave.key_name
+  key_name = aws_key_pair.recfoodcato_key.key_name
 
-  # Asocia el grupo de seguridad a la instancia
-  vpc_security_group_ids = [aws_security_group.mi_grupo_seguridad.id]
+  root_block_device {
+    volume_size = 20  # Tamaño del volumen en GB
+    volume_type = "gp3"  # Cambia a gp3
+  }
+
+  vpc_security_group_ids = [aws_security_group.recfoodcato_security_group.id]
 
   tags = {
-    Name = "MiInstancia"
+    Name = "RecFoodCatoInstance"
+  }
+}
+
+# Configuración de Amazon RDS
+resource "aws_db_instance" "recfoodcato_db" {
+  identifier           = "recfoodcato-db"
+  allocated_storage    = 10
+  db_name              = "recfoodcato_db"
+  engine               = "mysql"
+  engine_version       = "5.7"
+  instance_class       = "db.t3.micro"
+  username             = "admin"
+  password             = var.db_password  # Usa la variable para la contraseña
+  parameter_group_name = "default.mysql5.7"
+  skip_final_snapshot  = true
+  publicly_accessible  = true  # Hacer la base de datos accesible públicamente
+
+  vpc_security_group_ids = [aws_security_group.recfoodcato_security_group.id]
+
+  tags = {
+    Name = "RecFoodCatoInstanceDB"
   }
 }

@@ -1,5 +1,6 @@
 import math
-# calculos de Índice de Masa Corporal (IMC) y Tasa Metabólica Basal (TMB) para determinar las calorías diarias necesarias para mantener el peso actual, adelgazar o aumentar de peso. Además, se proporcionará una distribución de macronutrientes (proteínas, grasas y carbohidratos) basada en los objetivos de salud y preferencias personales. También se incluirá una función para generar combinaciones de alimentos basadas en las necesidades calóricas y macronutricas.
+import numpy as np
+
 def calcular_tmb(peso, altura, edad, genero):
     if genero == 0:
         return 9.99 * peso + 6.25 * altura - 4.92 * edad + 5
@@ -39,3 +40,5 @@ def calcular_imc(peso, altura):
         altura = altura / 100 
     imc = peso / (altura ** 2)
     return imc
+
+

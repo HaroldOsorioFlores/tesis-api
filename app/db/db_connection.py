@@ -1,9 +1,12 @@
 import aiomysql
 import os
+from dotenv import load_dotenv
 
-
+load_dotenv()
 async def create_connection():
     try:
+        print(f"prueba: {os.getenv('DB_HOST')}")
+
         connection = await aiomysql.connect(
             host=os.getenv("DB_HOST", "localhost"),
             user=os.getenv("DB_USER", "user"),

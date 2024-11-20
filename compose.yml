@@ -2,11 +2,8 @@ services:
   db:
     image: mysql:5.7
     container_name: recfoodcato-db
-    environment:
-      MYSQL_DATABASE: "recfoodcato"
-      MYSQL_USER: "user"
-      MYSQL_PASSWORD: "admin"
-      MYSQL_ROOT_PASSWORD: "admin"
+    env_file:
+      - ./.env
     ports:
       - "3308:3306"
     expose:
@@ -21,19 +18,9 @@ services:
     ports:
       - "8090:8080"
     volumes:
-    - ./app/data:/app/app/data  # Monta la carpeta data desde el host
-    deploy:
-      resources:
-        limits:
-          cpus: "6"
-          memory: "12g"
-    
-    environment:
-      DB_HOST: db
-      DB_USER: user
-      DB_PASSWORD: admin
-      DB_NAME: recfoodcato
-      DB_PORT: 3306
+      - ./app/data:/app/app/data # Monta la carpeta data desde el host
+    env_file:
+      - ./.env
     expose:
       - 8080
     healthcheck:

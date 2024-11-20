@@ -132,7 +132,11 @@ async def get_recommendations_db(data: RecommendationRequestDTO, correo: str, co
         necesidades_usuario = np.array(macronutrientes)
         print(f"necesidades_usuario: {necesidades_usuario}")
 
-        # Obtener los índices recomendados del modelo ML
+        # Cargar el modelo y los datos si no están cargados
+        if model_service.knn_loaded is None or model_service.combinaciones_productos is None:
+            await model_service.load_model_and_data()
+
+        # Encontrar las 10 combinaciones más cercanas a las necesidades del usuario
         distancias, indices = model_service.knn_loaded.kneighbors([necesidades_usuario])
         print(f"indices: {indices}")
 
@@ -156,22 +160,22 @@ async def get_recommendations_db(data: RecommendationRequestDTO, correo: str, co
 
             recomendaciones = []
             for i in range(10):
+                combinacion_recomendada_v2 = model_service.combinaciones_productos[indices.flatten()[i]]
                 indices_recomendados = get_combination_at_index(len(nombres_productos), indices.flatten()[i] + 1)
                 productos_recomendados = []
                 producto_ids = []
 
                 for j in indices_recomendados:
                     nombre_producto = nombres_productos[j]
-
                     producto = await obtener_producto_por_nombre(nombre_producto, connection)
 
-                    if producto:  
-                        productos_recomendados.append(producto)  
-                        producto_ids.append(producto.id)  
+                    if producto:
+                        productos_recomendados.append(producto)
+                        producto_ids.append(producto.id)
 
                 if productos_recomendados:
                     recomendaciones.append({
-                        "combinacion_recomendada": indices_recomendados,
+                        "combinacion_recomendada_v2": combinacion_recomendada_v2,
                         "productos_recomendados": productos_recomendados,
                         "distancia": distancias.flatten()[i]
                     })
@@ -188,8 +192,8 @@ async def get_recommendations_db(data: RecommendationRequestDTO, correo: str, co
 
             recomendaciones_finales = [
                 RecommendationResponseDTO(
-                    combinacion_recomendada=recomendacion["combinacion_recomendada"],
-                    productos_recomendados=recomendacion["productos_recomendados"],  
+                    combinacion_recomendada=recomendacion["combinacion_recomendada_v2"],
+                    productos_recomendados=recomendacion["productos_recomendados"],
                     distancia=recomendacion["distancia"]
                 )
                 for recomendacion in recomendaciones
