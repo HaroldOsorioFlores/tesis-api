@@ -1,15 +1,15 @@
 services:
-  db:
-    image: mysql:5.7
-    container_name: recfoodcato-db
-    env_file:
-      - ./.env
-    ports:
-      - "3308:3306"
-    expose:
-      - "3306"
-    networks:
-      - recfoodcato-networks
+  # db:
+  #   image: mysql:5.7
+  #   container_name: recfoodcato-db
+  #   env_file:
+  #     - ./.env
+  #   ports:
+  #     - "3308:3306"
+  #   expose:
+  #     - "3306"
+  #   networks:
+  #     - recfoodcato-networks
   api:
     build:
       context: .
@@ -17,8 +17,8 @@ services:
     container_name: recfoodcato-api
     ports:
       - "8090:8080"
-    volumes:
-      - ./app/data:/app/app/data # Monta la carpeta data desde el host
+    # volumes:
+    # - ./app/data:/app/app/data
     env_file:
       - ./.env
     expose:
@@ -29,6 +29,14 @@ services:
       timeout: 10s
       retries: 5
       start_period: 500s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5" # Limitar el uso de CPU al 50% del núcleo disponible
+          memory: 512M # Limitar la memoria RAM a 512 MB
+        reservations:
+          cpus: "0.1" # Reservar al menos el 10% del núcleo disponible
+          memory: 128M # Reservar al menos 128 MB de memoria RAM
     networks:
       - recfoodcato-networks
 
